@@ -26,6 +26,8 @@ def main():
     images_paths = sorted([image_path for image_path in images_dir.iterdir() if image_path.name.endswith('.jpg')])
     results = {}
     dataToSave = []
+    score = 0
+    maxScore = 0
     for index, image_path in enumerate(images_paths):
         image = cv2.imread(str(image_path))
         if image is None:
@@ -34,9 +36,12 @@ def main():
 
         # results[image_path.name] = perform_processing(image,answers[index])
         dictionarywithSignDescriptor = perform_processing(image,answers[index])
-        dataToSave.append(dictionarywithSignDescriptor)
-
-
+        # dataToSave.append(dictionarywithSignDescriptor)
+        print(answers[index])
+        print(dictionarywithSignDescriptor[0])
+        score += dictionarywithSignDescriptor[1]
+        maxScore += dictionarywithSignDescriptor[2]
+    print(f"Results: {score}/{maxScore}. Acuraccy: {score/maxScore}%")
     ########################### SAVING DATA ##############################
     csv.register_dialect("hashes", delimiter="#")
     f = open('/home/jakub/PycharmProjects/LicensePlateRecognition/signDescriptors/sign_test_HUMoments.csv', 'w')
