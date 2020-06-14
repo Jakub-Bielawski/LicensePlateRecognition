@@ -1,7 +1,7 @@
 import argparse
 import json
 from pathlib import Path
-
+import csv
 import cv2
 
 from processing.utils import perform_processing
@@ -25,13 +25,26 @@ def main():
 
     images_paths = sorted([image_path for image_path in images_dir.iterdir() if image_path.name.endswith('.jpg')])
     results = {}
-    for image_path in images_paths:
+    dataToSave = []
+    for index, image_path in enumerate(images_paths):
         image = cv2.imread(str(image_path))
         if image is None:
             print(f'Error loading image {image_path}')
             continue
 
-        results[image_path.name] = perform_processing(image)
+        # results[image_path.name] = perform_processing(image,answers[index])
+        dictionarywithSignDescriptor = perform_processing(image,answers[index])
+        dataToSave.append(dictionarywithSignDescriptor)
+
+
+    ########################### SAVING DATA ##############################
+    csv.register_dialect("hashes", delimiter="#")
+    f = open('/home/jakub/PycharmProjects/LicensePlateRecognition/signDescriptors/sign_test_HUMoments.csv', 'w')
+    with f:
+        for data in dataToSave:
+            writer = csv.writer(f, dialect="hashes")
+            for key in data:
+                writer.writerow((key, data[key]))
 
     with results_file.open('w') as output_file:
         json.dump(results, output_file, indent=4)

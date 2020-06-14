@@ -36,7 +36,7 @@ def empty_callback(_):
     pass
 
 def readDataSet():
-    f = open('/home/jakub/PycharmProjects/Projekt_SW/signDescriptors/sign_HUMoments.csv', 'r')
+    f = open('/home/jakub/PycharmProjects/LicensePlateRecognition/signDescriptors/sign_HUMoments.csv', 'r')
     signs = []
     huMoments = []
     with f:
@@ -318,45 +318,45 @@ def extraxtSigns(conturs_boxes, image,answers,data):
 
 
     ############################################### SAVING DESCRIPTORS ###################################3
-    # signs = [sign[0] for sign in boundingBoxesForSignsWithCenters]
-    # descriptionOfSigns = []
-    # dictionary = {}
-    # if len(signs) == 7:
-    #     # cv2.drawContours(image,signs,-1,(0,0,255),2)
-    #     # for i,sign in enumerate(boundingBoxesForSignsWithCenters):
-    #     #     font = cv2.FONT_HERSHEY_SIMPLEX
-    #     #     bottomLeftCornerOfText = (sign[1][0],sign[1][1])
-    #     #     fontScale = 1
-    #     #     fontColor = (0, 255, 0)
-    #     #     lineType = 2
-    #     #
-    #     #     cv2.putText(image, str(i),
-    #     #                 bottomLeftCornerOfText,
-    #     #                 font,
-    #     #                 fontScale,
-    #     #                 fontColor,
-    #     #                 lineType)
-    #
-    #     for signContour,sign in zip(signs,answers):
-    #         moments = cv2.moments(signContour)
-    #         huMoments = cv2.HuMoments(moments)
-    #         for i in range(0, 7):
-    #
-    #             if huMoments[i] == 0.:
-    #                 huMoments[i] = 0.001
-    #             huMoments[i] = -1 * math.copysign(1.0, huMoments[i]) * math.log10(abs(huMoments[i]))
-    #
-    #
-    #         huMoments=huMoments.tolist()
-    #         newHu = []
-    #         for hu in huMoments:
-    #             newHu.append(hu[0])
-    #
-    #         dictionary[sign] = newHu
-    #
+    signs = [sign[0] for sign in boundingBoxesForSignsWithCenters]
+    descriptionOfSigns = []
+    dictionary = {}
+    if len(signs) == 7:
+        # cv2.drawContours(image,signs,-1,(0,0,255),2)
+        # for i,sign in enumerate(boundingBoxesForSignsWithCenters):
+        #     font = cv2.FONT_HERSHEY_SIMPLEX
+        #     bottomLeftCornerOfText = (sign[1][0],sign[1][1])
+        #     fontScale = 1
+        #     fontColor = (0, 255, 0)
+        #     lineType = 2
+        #
+        #     cv2.putText(image, str(i),
+        #                 bottomLeftCornerOfText,
+        #                 font,
+        #                 fontScale,
+        #                 fontColor,
+        #                 lineType)
+
+        for signContour,sign in zip(signs,answers):
+            moments = cv2.moments(signContour)
+            huMoments = cv2.HuMoments(moments)
+            for i in range(0, 7):
+
+                if huMoments[i] == 0.:
+                    huMoments[i] = 0.001
+                huMoments[i] = -1 * math.copysign(1.0, huMoments[i]) * math.log10(abs(huMoments[i]))
+
+
+            huMoments=huMoments.tolist()
+            newHu = []
+            for hu in huMoments:
+                newHu.append(hu[0])
+
+            dictionary[sign] = newHu
+
     # print(dictionary)
-    # return dictionary
-    #
+    return dictionary
+
 
 
 
@@ -366,55 +366,56 @@ def extraxtSigns(conturs_boxes, image,answers,data):
 
 
     ##################################### MATCHING SHAPES #############################3
-
-    signs = [sign[0] for sign in boundingBoxesForSignsWithCenters]
-    readedSigns = []
-    for sign in signs:
-        best_match = "?"
-        moments = cv2.moments(sign)
-        huMoments = cv2.HuMoments(moments)
-        for i in range(0, 7):
-
-            if huMoments[i] == 0.:
-                huMoments[i] = 0.001
-            huMoments[i] = -1 * math.copysign(1.0, huMoments[i]) * math.log10(abs(huMoments[i]))
-        prev_fit = 100
-        for set in data:
-            fit = 0
-            # fits=[]
-            dataSignHU = set[1]
-            for i in range(0, 7):
-                fit += abs((1 / huMoments[i]) - (1 / dataSignHU[i]))
-                # fit += abs((huMoments[i]) - (dataSignHU[i]))
-                # fit = abs(huMoments[i]-dataSignHU[i])/abs(huMoments[i])
-                # fits.append(fit)
-            # print("fit",fit)
-            # print("prev fit",prev_fit)
-            # fit = max(fits)
-            if fit < prev_fit:
-                best_match = set[0]
-                prev_fit=fit
-        readedSigns.append(best_match)
-    # print(answers)
-    answerListOfChars=[]
-    for char in answers:
-        answerListOfChars.append(char)
-
-    score = 0
-    maxScore=0
-    if len(answerListOfChars) == len(readedSigns):
-        for sign_1,sign_2 in zip(answerListOfChars,readedSigns):
-            maxScore+=1
-            if sign_1 == sign_2:
-                score+=1
-
-
-    # cv2.waitKey()
-    return readedSigns, score,maxScore
+    #
+    # signs = [sign[0] for sign in boundingBoxesForSignsWithCenters]
+    # readedSigns = []
+    # for sign in signs:
+    #     best_match = "?"
+    #     moments = cv2.moments(sign)
+    #     huMoments = cv2.HuMoments(moments)
+    #     for i in range(0, 7):
+    #
+    #         if huMoments[i] == 0.:
+    #             huMoments[i] = 0.001
+    #         huMoments[i] = -1 * math.copysign(1.0, huMoments[i]) * math.log10(abs(huMoments[i]))
+    #     prev_fit = 100
+    #     for set in data:
+    #         fit = 0
+    #         # fits=[]
+    #         dataSignHU = set[1]
+    #         for i in range(0, 7):
+    #             fit += abs((1 / huMoments[i]) - (1 / dataSignHU[i]))
+    #             # fit += abs((huMoments[i]) - (dataSignHU[i]))
+    #             # fit = abs(huMoments[i]-dataSignHU[i])/abs(huMoments[i])
+    #             # fits.append(fit)
+    #         # print("fit",fit)
+    #         # print("prev fit",prev_fit)
+    #         # fit = max(fits)
+    #         if fit < prev_fit:
+    #             best_match = set[0]
+    #             prev_fit=fit
+    #     readedSigns.append(best_match)
+    # # print(answers)
+    # answerListOfChars=[]
+    # for char in answers:
+    #     answerListOfChars.append(char)
+    #
+    # score = 0
+    # maxScore=0
+    # if len(answerListOfChars) == len(readedSigns):
+    #     for sign_1,sign_2 in zip(answerListOfChars,readedSigns):
+    #         maxScore+=1
+    #         if sign_1 == sign_2:
+    #             score+=1
+    #
+    #
+    # # cv2.waitKey()
+    # return readedSigns, score,maxScore
 
 
 # def perform_processing(image: np.ndarray, answer) -> str
 def perform_processing(image: np.ndarray, answer):
+    image = cv2.resize(image, (1920, 2560))
     print(f'image.shape: {image.shape}')
     # TODO: add image processing here
 
@@ -424,7 +425,10 @@ def perform_processing(image: np.ndarray, answer):
     data = readDataSet()
     # data=None
     conturs_boxes = findSigns(image)
-    describedSigns = extraxtSigns(conturs_boxes, image,answer,data)
-    describedSigns,score,maxscore = describedSigns
+    describedSigns = extraxtSigns(conturs_boxes, image, answer, data)
+    # describedSigns,score,maxscore = describedSigns
     # print(describedSigns)
-    return describedSigns,score, maxscore
+    # return describedSigns,score, maxscore
+    path = "/home/jakub/PycharmProjects/LicensePlateRecognition/trainImages"
+    pathToReturn = "/home/jakub/PycharmProjects/LicensePlateRecognition/"
+    return describedSigns
