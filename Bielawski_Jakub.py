@@ -6,6 +6,13 @@ import cv2
 
 from processing.utils import perform_processing
 
+answers = ["PZ267NY", "PO9JW55", "PZ50891", "PZ206SP", "PO778SS", "PO389LJ", "PO4FK55", "PZ685TC", "PO8MG89", "CB107GP",
+           "PO8FV07", "PLE57S2", "PO970CN", "DJ69026", "PZ199NK", "DW6K559", "WF9481T", "WE596RF", "PKOH518", "PK89752",
+           "GD9305V", "PO028EG", "PZ25962", "PO434FY", "ELW05YC", "PKA91KX", "WP7285G", "FZG66FU", "FG52945", "PO9E342",
+           "PO778SS", "PRAEF88", "POBGU41", "POBGU41", "PP31442", "PO868RL", "PGNPX52", "PZ185CW", "POZ40FE", "PZ185CW",
+           "PO771VX", "PO073VR", "PO751SM", "PO5206T", "PO5206T", "PO751SM", "PSLRK05", "PO722VE", "POBGU41"
+           ]
+
 
 def main():
     parser = argparse.ArgumentParser()
