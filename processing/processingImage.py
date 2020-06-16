@@ -4,25 +4,29 @@ import math
 from skimage.measure import LineModelND, ransac
 import csv
 import ast
+from processing import platesHists
+from matplotlib import pyplot as plt
 
-HU_for_zero = np.array(
-    [[0.7127819],
-     [1.94480616],
-     [6.13277474],
-     [7.06535321],
-     [13.77031787],
-     [8.22354605],
-     [14.02725957]])
 
-HU_for_one = np.array(
-    [[0.18651126],
-     [0.4455705],
-     [1.14463054],
-     [1.29726841],
-     [2.51904724],
-     [1.52040395],
-     [3.79461274]]
-)
+def createHist():
+    values = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 6.0, 28.0, 88.0, 96.0, 135.0, 194.0, 230.0, 312.0,
+              389.0, 453.0, 500.0, 555.0, 679.0, 716.0, 668.0, 436.0, 302.0, 164.0, 120.0, 89.0, 66.0, 56.0, 43.0, 40.0,
+              43.0, 49.0, 48.0, 54.0, 53.0, 76.0, 55.0, 58.0, 48.0, 52.0, 38.0, 46.0, 42.0, 42.0, 42.0, 43.0, 54.0,
+              75.0, 61.0, 27.0, 34.0, 27.0, 26.0, 22.0, 21.0, 27.0, 34.0, 29.0, 37.0, 24.0, 36.0, 35.0, 35.0, 42.0,
+              51.0, 46.0, 35.0, 46.0, 59.0, 45.0, 52.0, 61.0, 70.0, 84.0, 83.0, 64.0, 64.0, 58.0, 63.0, 53.0, 54.0,
+              55.0, 54.0, 69.0, 54.0, 54.0, 49.0, 27.0, 37.0, 33.0, 45.0, 32.0, 30.0, 38.0, 27.0, 33.0, 29.0, 34.0,
+              18.0, 35.0, 26.0, 27.0, 16.0, 19.0, 24.0, 21.0, 23.0, 19.0, 24.0, 25.0, 25.0, 25.0, 29.0, 32.0, 26.0,
+              33.0, 36.0, 32.0, 49.0, 47.0, 44.0, 60.0, 47.0, 60.0, 61.0, 67.0, 74.0, 71.0, 66.0, 82.0, 83.0, 91.0,
+              91.0, 87.0, 84.0, 110.0, 101.0, 96.0, 104.0, 110.0, 87.0, 119.0, 128.0, 120.0, 105.0, 108.0, 116.0, 115.0,
+              113.0, 119.0, 113.0, 110.0, 125.0, 115.0, 108.0, 132.0, 126.0, 181.0, 208.0, 241.0, 303.0, 297.0, 354.0,
+              339.0, 356.0, 351.0, 415.0, 389.0, 390.0, 357.0, 380.0, 364.0, 383.0, 433.0, 426.0, 402.0, 384.0, 346.0,
+              400.0, 462.0, 554.0, 555.0, 681.0, 752.0, 766.0, 781.0, 900.0, 1177.0, 1455.0, 1709.0, 1585.0, 995.0,
+              439.0, 140.0, 57.0, 48.0, 35.0, 32.0, 23.0, 16.0, 8.0, 6.0, 10.0, 10.0, 7.0, 6.0, 7.0, 6.0, 3.0, 2.0, 3.0,
+              0.0, 1.0, 4.0, 0.0, 0.0, 0.0, 1.0, 2.0, 1.0, 1.0, 0.0, 1.0, 2.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+    hist = [[value] for value in values]
+    print(hist)
 
 
 def show(image):
@@ -38,7 +42,7 @@ def empty_callback(nothing):
 
 
 def readDataSet():
-    f = open('/home/jakub/PycharmProjects/LicensePlateRecognition/signDescriptors/sign_HUMoments.csv', 'r')
+    f = open('/home/jakub/PycharmProjects/LicensePlateRecognition/signDescriptors/HU_corrected_signs_lenght.csv', 'r')
     signs = []
     huMoments = []
     with f:
@@ -51,12 +55,78 @@ def readDataSet():
                 else:
                     res = ast.literal_eval(sign)
                     huMoments.append(res)
+
             index += 1
 
     data = []
     for sign, hu in zip(signs, huMoments):
         data.append([sign, hu])
     return data
+
+
+def return_intersection(hist_1, hist_2):
+    # minima = np.minimum(hist_1, hist_2)
+    # intersection = np.true_divide(np.sum(minima), np.sum(hist_2))
+    # return intersection
+    # hist_2.astype
+    hist_2 = np.array(hist_2).astype(np.float32)
+
+    return cv2.compareHist(hist_1,hist_2,method=cv2.HISTCMP_BHATTACHARYYA)
+
+
+def findPlate(image):
+    cv2.namedWindow('image')
+    image = cv2.resize(image, (0, 0), fx=0.4, fy=0.4)
+    image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    img_filtered = cv2.GaussianBlur(image_gray, (9, 9), 0.0)
+    image_edge = cv2.Canny(img_filtered, 30, 120, apertureSize=3, L2gradient=True)
+    dilation = cv2.dilate(image_edge, (3, 3), iterations=2)
+
+    image_contours, image_he = cv2.findContours(dilation, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
+
+    histOfImagePieces = []
+    plates = []
+    for index, countour in enumerate(image_contours):
+        x, y, w, h = cv2.boundingRect(countour)
+        aspect_ratio = float(w) / h
+        arearec = w * h
+        if 50_000 < arearec < 200_000:
+            if 1.5 < aspect_ratio < 5.8:
+                perimeter = 2 * w + 2 * h
+                # print(perimeter)
+                if perimeter < 2_000:
+                    cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 4)
+                    piece = image_gray[y:y + h, x:x + w][:, :, np.newaxis]
+                    plates.append(piece)
+                    hist = cv2.calcHist([piece], [0], None, [256], [0, 256])
+                    histOfImagePieces.append(hist)
+
+    matches = []
+    for histogram in histOfImagePieces:
+        matches_ = []
+        for histogram_ in platesHists.plateHist:
+            matches_.append(return_intersection(histogram, histogram_))
+        matches.append(np.max(matches_))
+
+    matches = np.array(matches)
+    plate = image_edge
+    try:
+        indexOfPlate = np.argmax(matches)
+        print("Posible plate", len(matches))
+        print(indexOfPlate)
+        plate = np.copy(plates[indexOfPlate])
+    except ValueError:
+        pass # TODO jeśli nie znalazł tablicy przetwarzaj całe zdjęcie
+
+
+
+    while (1):
+        if cv2.waitKey(20) & 0xFF == 27:
+            break
+
+        img_edge = cv2.resize(image, (0, 0), fx=0.7, fy=0.7)
+        cv2.imshow("PLATE", plate)
+        cv2.imshow('image', img_edge)
 
 
 def findBoxes(image):
@@ -100,24 +170,19 @@ def findBoxes(image):
 
 def findSigns_test(image):
     cv2.namedWindow('image')
-    cv2.createTrackbar('area_min', 'image', 480, 10000, empty_callback)
-    cv2.createTrackbar('len_min', 'image', 150, 20000, empty_callback)
-    cv2.createTrackbar('len_max', 'image', 800, 20000, empty_callback)
-    cv2.createTrackbar('t_min', 'image', 40, 255, empty_callback)
-    cv2.createTrackbar('t_max', 'image', 110, 255, empty_callback)
+    cv2.createTrackbar('area_min', 'image', 3000, 10000, empty_callback)
+    cv2.createTrackbar('len_min', 'image', 1000, 20000, empty_callback)
+    cv2.createTrackbar('len_max', 'image', 8000, 20000, empty_callback)
+    cv2.createTrackbar('t_min', 'image', 30, 255, empty_callback)
+    cv2.createTrackbar('t_max', 'image', 120, 255, empty_callback)
     cv2.createTrackbar('G_size', 'image', 9, 15, empty_callback)
     cv2.createTrackbar('sigma', 'image', 0, 30, empty_callback)
+    cv2.createTrackbar('ratio', 'image', 57, 100, empty_callback)
 
     image = cv2.resize(image, (0, 0), fx=0.4, fy=0.4)
     image_copy = np.copy(image)
     print("shape after resize: ", image.shape)
     image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # show(img_filtered)
-
-    # cv2.drawContours(image, image_contours, -1, (0, 255, 0), 3)
-    # print(len(image_contours))
-    ilosc = 0
 
     while (1):
         if cv2.waitKey(20) & 0xFF == 27:
@@ -132,44 +197,72 @@ def findSigns_test(image):
             G_size = 7
         img_filtered = cv2.GaussianBlur(image_gray, (G_size, G_size), simga)
         image_edge = cv2.Canny(img_filtered, T_min, T_max, apertureSize=3, L2gradient=True)
-        opening = cv2.morphologyEx(image_edge, cv2.MORPH_CLOSE, (9, 9))
-        image_contours, image_he = cv2.findContours(opening, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
+        dilation = cv2.dilate(image_edge, (3, 3), iterations=2)
+        # opening = cv2.morphologyEx(image_edge, cv2.MORPH_CLOSE, (13, 13))
+        # show(opening)
+        image_contours, image_he = cv2.findContours(dilation, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
 
         cv2.drawContours(image, image_contours, -1, (0, 255, 0), 3)
-
+        maybeSigns = []
         for index, countour in enumerate(image_contours):
             area = cv2.contourArea(countour)
-            perimeter = cv2.arcLength(countour, True)
+            # perimeter = cv2.arcLength(countour, True)
             area_min = cv2.getTrackbarPos('area_min', 'image')
             len_min = cv2.getTrackbarPos('len_min', 'image')
             len_max = cv2.getTrackbarPos('len_max', 'image')
 
-            rectangle = cv2.minAreaRect(countour)
-            box = cv2.boxPoints(rectangle)
-            box = np.int0(box)
-            area = cv2.contourArea(box)
-            perimeter = cv2.arcLength(box, True)
+            x, y, w, h = cv2.boundingRect(countour)
+            aspect_ratio = float(w) / h
+            arearec = w * h
+            histOfImagePieces = []
+            plates = []
+            if 50_000 < arearec < 200_000:
+                ratio = cv2.getTrackbarPos('ratio', 'image') / 10
+                if 1.5 < aspect_ratio < ratio:
+                    perimeter = 2*w+2*h
+                    # print(perimeter)
+                    if perimeter < 2_000:
+                        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 4)
+                        piece = image_gray[y:y + h, x:x + w][:, :, np.newaxis]
+                        plates.append(piece)
+                        hist = cv2.calcHist([piece], [0], None, [256], [0, 256])
+                        histOfImagePieces.append(hist)
 
-            if area>1200 and perimeter<500:
-                cv2.drawContours(image, [box], 0, (0, 255, 255), 3)
+            matches = []
+            for histogram in histOfImagePieces:
+                matches_ = []
+                for histogram_ in platesHists.plateHist:
+                    matches_.append(return_intersection(histogram, histogram_))
+                matches.append(np.max(matches_))
 
-            if area_min < area and len_min < perimeter < len_max:
-                # rectangle = cv2.minAreaRect(countour)
-                # box = cv2.boxPoints(rectangle)
-                # box = np.int0(box)
-                # print(box)
-                # cv2.drawContours(image, [box], 0, (0, 255, 255), 3)
-                # area = cv2.contourArea(box)
-                # perimeter = cv2.arcLength([box], True)
+            matches = np.array(matches)
+            plate = image_edge
+            try:
+                indexOfPlate = np.argmax(matches)
+                print("Posible plate", len(matches))
+                print(indexOfPlate)
+                plate = np.copy(plates[indexOfPlate])
+            except ValueError:
+                pass  # TODO jeśli nie znalazł tablicy przetwarzaj całe zdjęcie
 
+            # if area_min < area and len_min < perimeter < len_max:
+            #
+            #     area = cv2.contourArea(countour)
+            #     hull = cv2.convexHull(countour)
+            #     hull_area = cv2.contourArea(hull)
+            #     solidity = float(area) / hull_area
+            #     if 0.5 < solidity:
+            #         # if 2<aspect_ratio<5:
+            #         cv2.drawContours(image, [countour], 0, (0, 255, 255), 3)
+            #         maybeSigns.append(countour)
+            #         ilosc += 1
 
-                # print("box area: ",area)
-                # cv2.drawContours(image, image_contours, index, (0, 0, 255), 3)
+        # cv2.drawContours(image, maybeSigns, 0, (0, 255, 255), 3)
 
-                ilosc += 1
         img_edge = cv2.resize(image, (0, 0), fx=0.7, fy=0.7)
         cv2.imshow('image', img_edge)
-        # cv2.waitKey(10)
+        cv2.imshow("", plate)
+        # cv2.waitKey()
         image = np.copy(image_copy)
         image_contours = 0
 
@@ -180,18 +273,18 @@ def findSigns(image):
     img_filtered = cv2.GaussianBlur(image_gray, (9, 9), 0.0)
     image_edge = cv2.Canny(img_filtered, 40, 110, apertureSize=3, L2gradient=True)
     # TODO ustawić progi tak aby znajdowało wszystkie znaki, wtedy boundingboxy beda mialy sens
-
-    image_contours, image_he = cv2.findContours(image_edge, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
+    opening = cv2.morphologyEx(image_edge, cv2.MORPH_CLOSE, (9, 9))
+    image_contours, image_he = cv2.findContours(opening, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
 
     best_fitted_contours = []
     new_hierarchy = []
     for index, countour in enumerate(image_contours):
         area = cv2.contourArea(countour)
         perimeter = cv2.arcLength(countour, False)
-        if 480 < area and 150 < perimeter < 800:
+        if 380 < area and 80 < perimeter < 800:
             best_fitted_contours.append(countour)
             new_hierarchy.append(image_he[0][index])
-
+    cv2.drawContours(image, best_fitted_contours, -1, (0, 0, 255), 3)
     none_duplicated_conturs = []
     for index, contour_1 in enumerate(best_fitted_contours):
         for index_2, contour_2 in enumerate(reversed(best_fitted_contours)):
@@ -213,45 +306,19 @@ def findSigns(image):
         box = cv2.boxPoints(rectangle)
         box = np.int0(box)
         countoursBoxes.append([countour, box])
-    ################### TO DRAW BOUNDING BOXES UNCOMMENT THIS #############################
-    #     cv2.drawContours(image, [box], -1, (155, 0, 0), 3)
-    #
-    # cv2.drawContours(image, none_duplicated_conturs, -1, (0, 255, 255), 2)
-    # cv2.imshow("", image)
-    # cv2.waitKey(1000)
+        ################### TO DRAW BOUNDING BOXES UNCOMMENT THIS #############################
+        cv2.drawContours(image, [box], -1, (155, 0, 0), 3)
+
+    cv2.drawContours(image, none_duplicated_conturs, -1, (0, 255, 255), 2)
+    cv2.imshow("", image)
+    cv2.waitKey()
 
     return countoursBoxes
-
-
-def findZero(contours, image):
-    fits = []
-    image = cv2.resize(image, (0, 0), fx=0.4, fy=0.4)
-
-    for contour in contours:
-        moments = cv2.moments(contour)
-        huMoments = cv2.HuMoments(moments)
-        for i in range(0, 7):
-            huMoments[i] = -1 * math.copysign(1.0, huMoments[i]) * math.log10(abs(huMoments[i]))
-        fit = 0
-        for i in range(0, 7):
-            fit += abs((1 / abs(huMoments[i])) - (1 / HU_for_zero[i]))
-        fits.append(fit)
-    find = False
-    found_in = None
-    for index, fit in enumerate(fits):
-        if fit < 0.15:
-            find = True
-            found_in = index
-    return find
 
 
 def extraxtSigns(conturs_boxes, image, answers, data):
     def key_to_sort(signwithcenter):
         return signwithcenter[1][0]  # x value of contour center
-
-    def key_to_boxes(box):
-        perimeter = cv2.arcLength(box, False)
-        return perimeter
 
     image = cv2.resize(image, (0, 0), fx=0.4, fy=0.4)
 
@@ -271,16 +338,11 @@ def extraxtSigns(conturs_boxes, image, answers, data):
         cY = int(M["m01"] / M["m00"])
         box_centers.append((cX, cY))
 
-    # TODO kryterium na odległosc
-
-    contour_centers = np.array(contour_centers)
     box_centers = np.array(box_centers)
-    # contours, boxes and their centers
-    contoursWithCenters = []
-    boundingBoxesForSignsWithCenters = []
+    boundingBoxesForSignsWithCenters = []  # box contours and box centers
 
     # try for bounding boxes - a bit shity
-
+    contoursForSignsWithCenters = []
     try:
         model_robust, inliers_for_boxes = ransac(box_centers, LineModelND, min_samples=2,
                                                  residual_threshold=20,
@@ -298,32 +360,39 @@ def extraxtSigns(conturs_boxes, image, answers, data):
         startBox = boundingBoxesForSignsWithCenters[0]
         distance_prev = 0
         new = []
-        for index, boundingBoxeForSignWithCenter in enumerate(boundingBoxesForSignsWithCenters):
+        # for index, boundingBoxeForSignWithCenter in enumerate(boundingBoxesForSignsWithCenters):
+        #
+        #     distance = ((startBox[1][0] - boundingBoxeForSignWithCenter[1][0]) ** 2
+        #                 + (startBox[1][1] - boundingBoxeForSignWithCenter[1][1]) ** 2) ** 0.5
+        #
+        #     if abs(distance - distance_prev) > 20 or index == 0:
+        #         new.append(boundingBoxeForSignWithCenter)
+        #         distance_prev = distance
+        #     else:
+        #         prev_object = boundingBoxesForSignsWithCenters[index - 1]
+        #         prev_contour_lenght = cv2.arcLength(prev_object[0], False)
+        #         contour_lenght = cv2.arcLength(boundingBoxeForSignWithCenter[0], False)
+        #         suma = (prev_contour_lenght + contour_lenght) / 2
+        #         if contour_lenght < suma:
+        #             new.append(boundingBoxesForSignsWithCenters[index - 1])
+        #             boundingBoxesForSignsWithCenters.pop(index)
+        #         else:
+        #             new.append(boundingBoxeForSignWithCenter)
+        #             boundingBoxesForSignsWithCenters.pop(index - 1)
 
-            distance = ((startBox[1][0] - boundingBoxeForSignWithCenter[1][0]) ** 2
-                        + (startBox[1][1] - boundingBoxeForSignWithCenter[1][1]) ** 2) ** 0.5
+        for boundingBoxIndex, boundingBox in enumerate(boundingBoxesForSignsWithCenters):
+            boxesIn = 0
+            for boundingBoxIndex_, boundingBox_ in enumerate(boundingBoxesForSignsWithCenters):
+                if boundingBoxIndex != boundingBoxIndex_:
+                    result = cv2.pointPolygonTest(boundingBox[0], (boundingBox_[1][0], boundingBox_[1][1]), False)
+                    if result == 1:
+                        boxesIn += 1
+                        if boxesIn > 1:
+                            perimeter = cv2.arcLength(boundingBox[0], False)
+                            perimeter_ = cv2.arcLength(boundingBox_[0], False)
+                            if perimeter > perimeter_:
+                                boundingBoxesForSignsWithCenters.pop(boundingBoxIndex_)
 
-            if abs(distance - distance_prev) > 20 or index == 0:
-                new.append(boundingBoxeForSignWithCenter)
-                distance_prev = distance
-            else:
-                prev_object = boundingBoxesForSignsWithCenters[index - 1]
-                prev_contour_lenght = cv2.arcLength(prev_object[0], False)
-                contour_lenght = cv2.arcLength(boundingBoxeForSignWithCenter[0], False)
-                suma = (prev_contour_lenght + contour_lenght) / 2
-                # print(prev_contour_lenght)
-                # print(contour_lenght)
-                # print(suma)
-                if contour_lenght < suma:
-                    new.append(boundingBoxesForSignsWithCenters[index - 1])
-                    boundingBoxesForSignsWithCenters.pop(index)
-                else:
-                    new.append(boundingBoxeForSignWithCenter)
-                    boundingBoxesForSignsWithCenters.pop(index - 1)
-
-        BoundingBoxesForSigns = [contour[0] for contour in boundingBoxesForSignsWithCenters]
-
-        contoursForSignsWithCenters = []
         index = 0
         for sign_contour, is_inlier in zip(contours, inliers_for_boxes):
             if is_inlier:
@@ -334,93 +403,140 @@ def extraxtSigns(conturs_boxes, image, answers, data):
         contoursForSignsWithCenters.sort(key=key_to_sort)
 
         contoursForSigns = [contour[0] for contour in contoursForSignsWithCenters]
+        BoundingBoxesForSigns = [contour[0] for contour in boundingBoxesForSignsWithCenters]
 
-        # cv2.drawContours(image, contoursForSigns, -1, (255, 255, 0), 2)
-        # cv2.imshow("",image)
-        # cv2.waitKey()
+        # make full description of sign, with inside contours
+        for index_of_box, box in enumerate(BoundingBoxesForSigns):
+            singsIn = 0
+            for index_of_sign, sign in enumerate(contoursForSignsWithCenters):
+                result = cv2.pointPolygonTest(box, (sign[1][0], sign[1][1]), False)
+                if result == 1:
+                    singsIn += 1
+                    if singsIn > 1:
+                        perimeter = cv2.arcLength(sign[0], False)
+                        prev_perm = cv2.arcLength(contoursForSignsWithCenters[index_of_sign - 1][0], False)
+                        if prev_perm > perimeter:
+                            contoursForSignsWithCenters.pop(index_of_sign)
 
-    except ValueError:
+        print("                  len of signs : ", len(contoursForSignsWithCenters))
+        print("                  len of boundgboxes: ", len(BoundingBoxesForSigns))
+        cv2.drawContours(image, contoursForSigns, -1, (255, 255, 0), 2)
+        cv2.imshow("", image)
+        cv2.waitKey()
+
+    except ValueError as e:
+        print(e)
         pass
 
     ############################################### SAVING DESCRIPTORS ###################################3
-    # signs = [sign[0] for sign in boundingBoxesForSignsWithCenters]
-    # descriptionOfSigns = []
-    # dictionary = {}
-    # if len(signs) == 7:
-    #     # cv2.drawContours(image,signs,-1,(0,0,255),2)
-    #     # for i,sign in enumerate(boundingBoxesForSignsWithCenters):
-    #     #     font = cv2.FONT_HERSHEY_SIMPLEX
-    #     #     bottomLeftCornerOfText = (sign[1][0],sign[1][1])
-    #     #     fontScale = 1
-    #     #     fontColor = (0, 255, 0)
-    #     #     lineType = 2
-    #     #
-    #     #     cv2.putText(image, str(i),
-    #     #                 bottomLeftCornerOfText,
-    #     #                 font,
-    #     #                 fontScale,
-    #     #                 fontColor,
-    #     #                 lineType)
+    # contoursForSigns = [contour[0] for contour in contoursForSignsWithCenters]
     #
-    #     for signContour,sign in zip(signs,answers):
+    # dictionary = {}
+    # if len(contoursForSigns) == 7:
+    #     for signContour, sign in zip(contoursForSigns, answers):
+    #         descriptionOfSigns = []
+    #         #################################### HU DESCRIPTOR ##############################
     #         moments = cv2.moments(signContour)
     #         huMoments = cv2.HuMoments(moments)
     #         for i in range(0, 7):
-    #
     #             if huMoments[i] == 0.:
     #                 huMoments[i] = 0.001
     #             huMoments[i] = -1 * math.copysign(1.0, huMoments[i]) * math.log10(abs(huMoments[i]))
+    #         huMoments = huMoments.tolist()
     #
-    #
-    #         huMoments=huMoments.tolist()
-    #         newHu = []
     #         for hu in huMoments:
-    #             newHu.append(hu[0])
+    #             descriptionOfSigns.append(hu[0])
     #
-    #         dictionary[sign] = newHu
+    #         dictionary[sign] = descriptionOfSigns
+    #         ##################################################################################
+    #         ################################ CONVEX HULL DESCRIPTOR ##########################
+    #
+    #         # hull = cv2.convexHull(signContour, returnPoints=False)
+    #         # defects = cv2.convexityDefects(signContour, hull)
+    #         # defects = defects.tolist()
+    #         # for defect in defects:
+    #         #     # print("defect",defect[0])
+    #         #     descriptionOfSigns.append(defect[0])
+    #         # dictionary[sign] = descriptionOfSigns
+    #         # # print(defects)
+    #
     #
     # # print(dictionary)
     # return dictionary
-
+    # TODO: sprawdzanie poprawności dla convexhulla
     ##################################### MATCHING SHAPES #############################3
-
-    signs = [sign[0] for sign in boundingBoxesForSignsWithCenters]
+    signs = [contour[0] for contour in contoursForSignsWithCenters]
     readedSigns = []
-    for sign in signs:
+    for index_of_sign, sign in enumerate(signs):
+        ##################################### HU DESCRIPTOR ############################
         best_match = "?"
         moments = cv2.moments(sign)
         huMoments = cv2.HuMoments(moments)
         for i in range(0, 7):
 
             if huMoments[i] == 0.:
-                huMoments[i] = 0.001
+                huMoments[i] = 0.0001
             huMoments[i] = -1 * math.copysign(1.0, huMoments[i]) * math.log10(abs(huMoments[i]))
         prev_fit = 100
-        for set in data:
+
+        for dataSet in data:
             fit = 0
-            dataSignHU = set[1]
+            dataSignHU = dataSet[1]
+            dataSign = dataSet[0]
+            if index_of_sign == 0 or index_of_sign == 1:
+                if not dataSign.isalpha():
+                    continue
             for i in range(0, 7):
+                # TODO: wiout abs
                 fit += abs((1 / huMoments[i]) - (1 / dataSignHU[i]))
 
             if fit < prev_fit:
-                best_match = set[0]
+                best_match = dataSign
                 prev_fit = fit
         readedSigns.append(best_match)
-    # print(answers)
+        ###################################################################################
+
+        ##################################### CONVEX HULL #################################
+        # hull = cv2.convexHull(sign, returnPoints=False)
+        # defects = cv2.convexityDefects(sign, hull)
+        # prev_fit = 1000000
+        #
+        # for dataSet in data:
+        #     fit = 0
+        #     dataSign = dataSet[0]
+        #     dataDefects = dataSet[1]
+        #     # print(len(data))
+        #     if len(dataDefects) == len(defects):
+        #         for i in range(0,len(dataDefects)):
+        #             # print(defects[i][0][0])
+        #             # print(dataDefects[i])
+        #             fit += abs(defects[i][0][0]-dataDefects[i][0])
+        #             # print(fit)
+        #         if fit < prev_fit:
+        #             best_match = dataSign
+        #             prev_fit = fit
+        #
+        # readedSigns.append(best_match)
+
+    # count score
+    score = 0
+    maxScore = 0
     answerListOfChars = []
     for char in answers:
         answerListOfChars.append(char)
 
-    score = 0
-    maxScore = 0
     if len(answerListOfChars) == len(readedSigns):
         for sign_1, sign_2 in zip(answerListOfChars, readedSigns):
             maxScore += 1
             if sign_1 == sign_2:
                 score += 1
 
-    # cv2.waitKey()
-    return readedSigns, score, maxScore
+    # convert to string
+    readedPlate = ""
+    for rSign in readedSigns:
+        readedPlate += str(rSign)
+
+    return readedPlate, score, maxScore
 
 
 # def perform_processing(image: np.ndarray, answer) -> str
@@ -428,18 +544,18 @@ def perform_processing(image: np.ndarray, answer):
     image = cv2.resize(image, (2560, 1920))
     print(f'image.shape: {image.shape}')
     # TODO: add image processing here
-
-    findSigns_test(image)
+    # createHist()
+    # findSigns_test(image)
     # findBoxes(image)
-
-    data = readDataSet()
+    findPlate(image)
+    # data = readDataSet()
     # data=None
     # conturs_boxes = findSigns(image)
     # describedSigns = extraxtSigns(conturs_boxes, image, answer, data)
-    # describedSigns, score, maxscore = describedSigns
+    # describedSign, score, maxscore = describedSigns
     # print(describedSigns)
 
     return "PO12345"
-    # return describedSigns, score, maxscore
+    # return describedSign, score, maxscore
     # pathToReturn = "/home/jakub/PycharmProjects/LicensePlateRecognition/"
     # return describedSigns
