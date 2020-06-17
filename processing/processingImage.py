@@ -41,8 +41,12 @@ def empty_callback(nothing):
     pass
 
 
+def XCoordinateSort(box):
+    return box[0]
+
+
 def readDataSet():
-    f = open('/home/jakub/PycharmProjects/LicensePlateRecognition/signDescriptors/HU_corrected_signs_lenght.csv', 'r')
+    f = open('/home/jakub/PycharmProjects/LicensePlateRecognition/signDescriptors/HuMomentsOfSigns.csv', 'r')
     signs = []
     huMoments = []
     with f:
@@ -65,13 +69,9 @@ def readDataSet():
 
 
 def return_intersection(hist_1, hist_2):
-    # minima = np.minimum(hist_1, hist_2)
-    # intersection = np.true_divide(np.sum(minima), np.sum(hist_2))
-    # return intersection
-    # hist_2.astype
     hist_2 = np.array(hist_2).astype(np.float32)
-
-    return cv2.compareHist(hist_1,hist_2,method=cv2.HISTCMP_BHATTACHARYYA)
+    # TODO : try diffrent methods
+    return cv2.compareHist(hist_1, hist_2, method=cv2.HISTCMP_INTERSECT)
 
 
 def findPlate(image):
@@ -79,7 +79,7 @@ def findPlate(image):
     image = cv2.resize(image, (0, 0), fx=0.4, fy=0.4)
     image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     img_filtered = cv2.GaussianBlur(image_gray, (9, 9), 0.0)
-    image_edge = cv2.Canny(img_filtered, 30, 120, apertureSize=3, L2gradient=True)
+    image_edge = cv2.Canny(img_filtered, 38, 120, apertureSize=3, L2gradient=True)
     dilation = cv2.dilate(image_edge, (3, 3), iterations=2)
 
     image_contours, image_he = cv2.findContours(dilation, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
@@ -94,7 +94,7 @@ def findPlate(image):
             if 1.5 < aspect_ratio < 5.8:
                 perimeter = 2 * w + 2 * h
                 # print(perimeter)
-                if perimeter < 2_000:
+                if perimeter < 2_000 and 1200 > w > 400:
                     cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 4)
                     piece = image_gray[y:y + h, x:x + w][:, :, np.newaxis]
                     plates.append(piece)
@@ -110,62 +110,125 @@ def findPlate(image):
 
     matches = np.array(matches)
     plate = image_edge
+    plateThresh = image_edge
     try:
         indexOfPlate = np.argmax(matches)
-        print("Posible plate", len(matches))
-        print(indexOfPlate)
         plate = np.copy(plates[indexOfPlate])
-    except ValueError:
-        pass # TODO jeśli nie znalazł tablicy przetwarzaj całe zdjęcie
+        # plate = cv2.equalizeHist(plate)
 
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        plate = clahe.apply(plate)
 
-
-    while (1):
-        if cv2.waitKey(20) & 0xFF == 27:
-            break
-
-        img_edge = cv2.resize(image, (0, 0), fx=0.7, fy=0.7)
-        cv2.imshow("PLATE", plate)
-        cv2.imshow('image', img_edge)
+        _, th3 = cv2.threshold(plate, 90, 255, cv2.THRESH_BINARY)
+        # th3 = cv2.adaptiveThreshold(plate, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY, 15, 2)
+        return plate, th3
+    except ValueError as e:
+        # pass  # TODO jeśli nie znalazł tablicy przetwarzaj całe zdjęcie
+        print(e)
+        return "Error"
+    #
+    # while (1):
+    #     if cv2.waitKey(20) & 0xFF == 27:
+    #         break
+    #
+    #     img_edge = cv2.resize(image, (0, 0), fx=0.7, fy=0.7)
+    #     cv2.imshow("PLATE", plate)
+    #     # cv2.imshow("PLATE_THRESH",dilation)
+    #
+    #     cv2.imshow('image', img_edge)
 
 
 def findBoxes(image):
-    cv2.namedWindow('image')
-    cv2.createTrackbar('area_min', 'image', 500, 10000, empty_callback)
-    cv2.createTrackbar('len_min', 'image', 0, 20000, empty_callback)
-    cv2.createTrackbar('len_max', 'image', 1500, 20000, empty_callback)
+    image_contours, image_he = cv2.findContours(image, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
+    signsBoxes = []
+    allH = []
+    # find boxes for signs
+    for index, countour in enumerate(image_contours):
+        x, y, w, h = cv2.boundingRect(countour)
+        area = w * h
+        apectRatio = h / w
+        if 22_000 > area > 2200 and apectRatio > 0.8:
+            allH.append(h)
+            signsBoxes.append((x, y, w, h))
 
-    image = cv2.resize(image, (0, 0), fx=0.4, fy=0.4)
-    image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    img_filtered = cv2.GaussianBlur(image_gray, (9, 9), 0.0)
-    image_edge = cv2.Canny(img_filtered, 40, 110, apertureSize=3, L2gradient=True)
-    image_contours, image_he = cv2.findContours(image_edge, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_SIMPLE)
-    cv2.drawContours(image, image_contours, -1, (0, 255, 0), 3)
-    print(len(image_contours))
-    ilosc = 0
+    # eliminate height outliers
+    if len(allH) > 0:
+        meanH = sum(allH) / len(allH)
+        normalizedH = [h / meanH for h in allH]
+        index_to_erase = 0
+        for box, H_nn in zip(signsBoxes, normalizedH):
+            if H_nn < 0.75 or H_nn > 1.25:
+                signsBoxes.pop(index_to_erase)
+            index_to_erase += 1
 
+    # eliminate inside boxes
+    boxCenters = [(box[0] + (box[2] / 2), box[1] + (box[3] / 2)) for box in signsBoxes]
+    # print(len(boxCenters))
+    for boxID, box in enumerate(signsBoxes):
+        x, y, w, h = box
+        # Check if is inside
+        for boxCenterID, boxCenter in enumerate(boxCenters):
+            if boxID != boxCenterID:
+                if x < boxCenter[0] < x + w and y < boxCenter[1] < y + h:
+                    area = w * h
+                    box_ = signsBoxes[boxCenterID]
+                    area_ = box_[2] * box_[3]
+                    if area < area_:
+                        signsBoxes.pop(boxID)
+                        boxCenters.pop(boxCenterID)
+    Signs = []
+    for box in signsBoxes:
+        x, y, w, h = box
+        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 255), 4)
+        Signs.append(box)
+        # Signs.append(image[y:y + h, x:x + w])
+
+    # sort Boxes
+    Signs.sort(key=XCoordinateSort)
+
+    # print(len(signsBoxes))
+    # while (1):
+    #     if cv2.waitKey(20) & 0xFF == 27:
+    #         break
+    #
+    #         # cv2.drawContours(image, image_contours, index, (0, 0, 255), 3)
+    #         # cv2.drawContours(image, [box], -1, (155, 0, 0), 3)
+    #     for signID,sign in enumerate(Signs):
+    #         cv2.imshow(f"{signID}",sign)
+    return Signs
+
+
+def cutSigns(Plate, Boxes):
+    Signs = []
+    for box in Boxes:
+        # make box a bit larger
+        x, y, w, h = box
+        x -= 3
+        y -= 3
+        w += 6
+        h += 6
+        Signs.append(Plate[y:y + h, x:x + w])
+
+    print(len(Signs))
+    # while (1):
+    #     if cv2.waitKey(20) & 0xFF == 27:
+    #         break
+    #     for signID, sign in enumerate(Signs):
+    #         cv2.imshow(f"{signID}", sign)
+    BwSigns = []
+    if len(Signs) == 7:
+        for sign in Signs:
+            _, thresh = cv2.threshold(sign, 100, 255, cv2.THRESH_BINARY)
+            # BwSigns.append(cv2.bitwise_not(thresh))
+            # closing = cv2.morphologyEx(cv2.bitwise_not(thresh), cv2.MORPH_CLOSE, (7, 7))
+            dilation = cv2.dilate(cv2.bitwise_not(thresh), (3, 3), iterations=2)
+            BwSigns.append(dilation)
     while (1):
         if cv2.waitKey(20) & 0xFF == 27:
             break
-        cv2.drawContours(image, image_contours, -1, (0, 255, 0), 3)
-
-        for index, countour in enumerate(image_contours):
-            area = cv2.contourArea(countour)
-            perimeter = cv2.arcLength(countour, False)
-            area_min = cv2.getTrackbarPos('area_min', 'image')
-            len_min = cv2.getTrackbarPos('len_min', 'image')
-            len_max = cv2.getTrackbarPos('len_max', 'image')
-
-            rectangle = cv2.minAreaRect(countour)
-            box = cv2.boxPoints(rectangle)
-            box = np.int0(box)
-
-            if area_min < area and len_min < perimeter < len_max:
-                cv2.drawContours(image, image_contours, index, (0, 0, 255), 3)
-
-                cv2.drawContours(image, [box], -1, (155, 0, 0), 3)
-        img_edge = cv2.resize(image, (0, 0), fx=0.7, fy=0.7)
-        cv2.imshow('image', img_edge)
+        for signID, sign in enumerate(BwSigns):
+            cv2.imshow(f"{signID}", sign)
+    return BwSigns
 
 
 def findSigns_test(image):
@@ -219,7 +282,7 @@ def findSigns_test(image):
             if 50_000 < arearec < 200_000:
                 ratio = cv2.getTrackbarPos('ratio', 'image') / 10
                 if 1.5 < aspect_ratio < ratio:
-                    perimeter = 2*w+2*h
+                    perimeter = 2 * w + 2 * h
                     # print(perimeter)
                     if perimeter < 2_000:
                         cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 4)
@@ -307,7 +370,7 @@ def findSigns(image):
         box = np.int0(box)
         countoursBoxes.append([countour, box])
         ################### TO DRAW BOUNDING BOXES UNCOMMENT THIS #############################
-        cv2.drawContours(image, [box], -1, (155, 0, 0), 3)
+        # cv2.drawContours(image, [box], -1, (155, 0, 0), 3)
 
     cv2.drawContours(image, none_duplicated_conturs, -1, (0, 255, 255), 2)
     cv2.imshow("", image)
@@ -539,15 +602,114 @@ def extraxtSigns(conturs_boxes, image, answers, data):
     return readedPlate, score, maxScore
 
 
+def saveHuDescriptors(Signs, answers):
+    dictionary = {}
+
+    for sign, AnswerSign in zip(Signs, answers):
+        descriptionOfSigns = []
+        #################################### HU DESCRIPTOR ##############################
+        moments = cv2.moments(sign)
+        huMoments = cv2.HuMoments(moments)
+        for i in range(0, 7):
+            # if huMoments[i] == 0.:
+            #     huMoments[i] = 0.001
+            huMoments[i] = -1 * math.copysign(1.0, huMoments[i]) * math.log10(abs(huMoments[i]))
+        huMoments = huMoments.tolist()
+
+        for hu in huMoments:
+            descriptionOfSigns.append(hu[0])
+        dictionary[AnswerSign] = descriptionOfSigns
+    # print(dictionary)
+    return dictionary
+
+
+def matchSigns(signs,data):
+    readedSigns = []
+    for index_of_sign, sign in enumerate(signs):
+        ##################################### HU DESCRIPTOR ############################
+        best_match = "?"
+        moments = cv2.moments(sign)
+        huMoments = cv2.HuMoments(moments)
+        for i in range(0, 7):
+            if huMoments[i] == 0.:
+                huMoments[i] = 0.001
+            huMoments[i] = -1 * math.copysign(1.0, huMoments[i]) * math.log10(abs(huMoments[i]))
+        prev_fit = 100
+
+        for dataSet in data:
+            fit = 0
+            dataSignHU = dataSet[1]
+            dataSign = dataSet[0]
+            if index_of_sign == 0 or index_of_sign == 1:
+                if not dataSign.isalpha():
+                    continue
+            for i in range(0, 7):
+                # TODO: wiout abs
+                if dataSignHU[i] == 0.:
+                    dataSignHU[i] = 0.001
+                fit += abs((1 / huMoments[i]) - (1 / dataSignHU[i]))
+
+            if fit < prev_fit:
+                best_match = dataSign
+                prev_fit = fit
+        readedSigns.append(best_match)
+
+
+
+
+
+    # convert to string
+
+
+
+
+
+
+    return readedSigns
 # def perform_processing(image: np.ndarray, answer) -> str
 def perform_processing(image: np.ndarray, answer):
     image = cv2.resize(image, (2560, 1920))
     print(f'image.shape: {image.shape}')
     # TODO: add image processing here
-    # createHist()
-    # findSigns_test(image)
-    # findBoxes(image)
-    findPlate(image)
+    data = readDataSet()
+    try:
+        plate, thresholdedPlate = findPlate(image)
+        boxes = findBoxes(thresholdedPlate)
+        signs = cutSigns(plate, boxes)
+
+
+        # if len(signs) == 7:
+        #     Dictionary_SignToHuMoments = saveHuDescriptors(signs, answers=answer)
+        # else:
+        #     Dictionary_SignToHuMoments = {"?": [0, 0, 0, 0, 0, 0, 0]}
+
+        readedPlate = matchSigns(signs,data)
+
+        score = 0
+        maxScore = 0
+        answerListOfChars = []
+        for char in answer:
+            answerListOfChars.append(char)
+
+        if len(answerListOfChars) == len(readedPlate):
+            for sign_1, sign_2 in zip(answerListOfChars, readedPlate):
+                maxScore += 1
+                if sign_1 == sign_2:
+                    score += 1
+        print(score)
+
+        print(answer)
+        readedPlateString = ""
+        for rSign in readedPlate:
+            readedPlateString += str(rSign)
+        print(readedPlateString)
+        return score, maxScore
+        # return Dictionary_SignToHuMoments
+    except ValueError:
+        # return {"?": [0, 0, 0, 0, 0, 0, 0]}
+        print("error")
+
+        return 0, 0
     # data = readDataSet()
     # data=None
     # conturs_boxes = findSigns(image)
@@ -555,7 +717,7 @@ def perform_processing(image: np.ndarray, answer):
     # describedSign, score, maxscore = describedSigns
     # print(describedSigns)
 
-    return "PO12345"
+    # return "PO12345"
     # return describedSign, score, maxscore
     # pathToReturn = "/home/jakub/PycharmProjects/LicensePlateRecognition/"
     # return describedSigns
