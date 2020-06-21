@@ -15,8 +15,8 @@ Assumptions
 Width of plate is greater than 1/3 image width.
 It's made for Polish license plates.
 
- Problems to fix:
- -
- Make detection independent of license plate lighting.
- Try different ways to find possible license plates.
- Improve sign description  (the 6 and 9 problem).
+Problems to fix:
+-
+Make detection independent of license plate lighting.
+Try different ways to find possible license plates.
+Improve sign description  (the 6 and 9 problem).
