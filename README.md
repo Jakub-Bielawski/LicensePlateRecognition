@@ -12,8 +12,8 @@ Run
 
 Assumptions
 -
-Width of plate is greater than 1/3 image width.
-It's made for Polish license plates.
+- Width of plate is greater than 1/3 image width.
+- It's made for Polish license plates.
 
 Problems to fix:
 -
