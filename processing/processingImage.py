@@ -125,8 +125,9 @@ def findPlate(image, th1, coefficient=1., SHOW=False):
             plate, th3 = findPlate(IMAGE_COPY, 0, 1.5)
             errors = 0
             return plate, th3
-        print("ERROR IN PLATE SEARCHING")
-
+        # print("ERROR IN PLATE SEARCHING")
+        # print("Errors: ", errors)
+        # pass
 
 def findBoxes(image, SHOW=False):
     """
@@ -299,22 +300,26 @@ def perform_processing(image: np.ndarray) -> str:
     """
 
     image = cv2.resize(image, (2560, 1920))
+    try:
+        plate, thresholdedPlate = findPlate(image, 0)
+        boxes = findBoxes(thresholdedPlate)
 
-    plate, thresholdedPlate = findPlate(image, 0)
-    boxes = findBoxes(thresholdedPlate)
+        signs = cutSigns(plate, boxes)
 
-    signs = cutSigns(plate, boxes)
+        readedPlate = matchSigns(signs)
+        tryies = 7
+        startThresh = 80
+        for iteration in range(0, tryies):
+            if readedPlate == "???????" and tryies != 0:
+                plate, thresholdedPlate = findPlate(image, startThresh)
+                boxes = findBoxes(thresholdedPlate)
+                signs = cutSigns(plate, boxes)
+                readedPlate = matchSigns(signs)
+                startThresh += 10
 
-    readedPlate = matchSigns(signs)
-    tryies = 7
-    startThresh = 80
-    for iteration in range(0, tryies):
-        if readedPlate == "???????" and tryies != 0:
-            plate, thresholdedPlate = findPlate(image, startThresh)
-            boxes = findBoxes(thresholdedPlate)
-            signs = cutSigns(plate, boxes)
-            readedPlate = matchSigns(signs)
-            startThresh += 10
+        # print(readedPlate)
+        return readedPlate
 
-    print(readedPlate)
-    return readedPlate
+    except:
+        print("Failed to find license plate. :/ ")
+        return "???????"

@@ -7,12 +7,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 from processing.processingImage import perform_processing
 
-answers = ["PZ267NY", "PO9JW55", "PZ50891", "PZ206SP", "PO778SS", "PO389LJ", "PO4FK55", "PZ685TC", "PO8MG89",
-           "CB107GP", "PO8FV07", "PLE57S2", "PO970CN", "DJ69026", "PZ199NK", "DW6K559", "WF9481T", "WE596RF", "PKOH518",
-           "PK89752", "GD9305V", "PO028EG", "PZ25962", "PO434FY", "ELW05YC", "PKA91KX", "WP7285G", "FZG66FU", "FG52945",
-           "PO9E342", "PO778SS", "PRAEF88", "POBGU41", "POBGU41", "PP31442", "PO868RL", "PGNPX52", "PZ185CW", "POZ40FE",
-           "PZ185CW", "PO771VX", "PO073VR", "PO751SM", "PO5206T", "PO5206T", "PO751SM", "PSLRK05", "PO722VE", "POBGU41"
-           ]
+answers = ["List of corrects plates signs."]
 
 
 cropping = False
@@ -53,28 +48,28 @@ def main():
         if image is None:
             print(f'Error loading image {image_path}')
             continue
-
+        print(image_path)
         results[image_path.name] = perform_processing(image)
+        with results_file.open('w') as output_file:
+            json.dump(results, output_file, indent=4)
 
-
-        ########## Calculating scores #########
-        point = 0
-        for cPlate, cAnswer in zip(results[image_path.name], answers[index]):
-            if cPlate == cAnswer:
-                point += 1
-        score += point
-        maxScore += 7
-        allPlates += 1
-        if results[image_path.name] == "???????":
-            NotReadedPlates += 1
-    print(f"Plates haven't been found on: {NotReadedPlates}/{allPlates} pictures")
-    print(f"Results: {score}/{maxScore}. Acuraccy: {100 * (score / maxScore)}%")
+    #     ########## Calculating scores #########
+    #     point = 0
+    #     for cPlate, cAnswer in zip(results[image_path.name], answers[index]):
+    #         if cPlate == cAnswer:
+    #             point += 1
+    #     score += point
+    #     maxScore += 7
+    #     allPlates += 1
+    #     if results[image_path.name] == "???????":
+    #         NotReadedPlates += 1
+    # print(f"Plates haven't been found on: {NotReadedPlates}/{allPlates} pictures")
+    # print(f"Results: {score}/{maxScore}. Acuraccy: {100 * (score / maxScore)}%")
 
 
     # SaveHuDescriptors(dataToSave)
 
-    with results_file.open('w') as output_file:
-        json.dump(results, output_file, indent=4)
+
 
 
 if __name__ == '__main__':
